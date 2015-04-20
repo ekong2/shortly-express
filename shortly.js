@@ -23,24 +23,24 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 
-app.get('/', 
+app.get('/',
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
+app.get('/create',
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links',
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links',
 function(req, res) {
   var uri = req.body.url;
 
@@ -78,6 +78,42 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/logout', function(req, res) {
+  res.render('login');
+});
+
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
+app.post('/login', function (req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  if(username === ""/* pull from db */ && password === ""/* pull from db*/) {
+    res.redirect('/');
+  } else {
+    // maybe throw some error?
+    res.redirect('/login');
+  }
+});
+
+app.post('/signup', function (req, res){
+  var username = req.body.username;
+  var password = req.body.password;
+
+  var user = new User({
+    username: username,
+    password: password
+  });
+
+  user.save().then(function(newUser) {
+    Users.add(newUser);
+
+    res.send(302, "res.render('/login')");
+  });
+
+});
 
 
 /************************************************************/
