@@ -2,7 +2,9 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var cookieParser = require('cookie-parser');
+var session = require('express-session');
+var bcrypt = require('bcrypt-nodejs');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -22,9 +24,25 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+// Express session authentication
+app.use(cookieParser("derek's little secret"));
+app.use(session({secret: '<mysecret>',
+  saveUninitialized: true,
+  resave: true}));
 
-app.get('/',
-function(req, res) {
+//Our restricting function
+function restrict(req, res, next){
+  if (req.session.user){
+    next();
+  } else {
+    req.session.error = 'Access denied';
+    res.redirect('/login');
+  }
+};
+
+
+
+app.get('/', function(req, res) {
   res.render('index');
 });
 
@@ -33,8 +51,7 @@ function(req, res) {
   res.render('index');
 });
 
-app.get('/links',
-function(req, res) {
+app.get('/links', restrict, function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
@@ -79,9 +96,14 @@ function(req, res) {
 /************************************************************/
 
 app.get('/logout', function(req, res) {
-  res.render('login');
+  req.session.destroy(function(){
+    res.redirect('/login');
+  });
 });
 
+app.get('/login', function(req, res){
+  res.render('login');
+})
 app.get('/signup', function(req, res) {
   res.render('signup');
 });
@@ -90,18 +112,30 @@ app.post('/login', function (req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  if(username === ""/* pull from db */ && password === ""/* pull from db*/) {
-    res.redirect('/');
-  } else {
-    // maybe throw some error?
-    res.redirect('/login');
-  }
+  new User({username: username}).fetch().then(function(found){
+    if (found) {
+      console.log('USER WAS FOUND');
+      var hash = bcrypt.hashSync(password, found.get('salt'));
+      if(hash === found.get('hash')) {
+        console.log('USER WAS AUTHENTICATED');
+        req.session.regenerate(function(){
+          req.session.user = username;
+          res.redirect('/');
+        });
+      } else {
+        res.redirect('/login');
+      }
+    } else {
+      res.redirect('/login');
+    }
+  });
 });
 
 app.post('/signup', function (req, res){
   var username = req.body.username;
   var password = req.body.password;
 
+  // error handling for if the username is already taken
   var user = new User({
     username: username,
     password: password
@@ -109,8 +143,7 @@ app.post('/signup', function (req, res){
 
   user.save().then(function(newUser) {
     Users.add(newUser);
-
-    res.send(302, "res.render('/login')");
+    res.redirect('/login');
   });
 
 });
