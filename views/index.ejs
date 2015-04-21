@@ -3,6 +3,7 @@
   <ul>
     <li><a href='#' class='index'>All Links</a></li>
     <li><a href='#' class='create'>Shorten</a></li>
+    <li><a href='#' class='logout'>Log Out</a></li>
   </ul>
   </div>
   <div id='container'></div>
@@ -21,6 +22,15 @@
 
 
 <script id='create' type='text/x-handlebars-template'>
+  <form>
+      <input class='text' type='text' name='url'>
+      <input type='submit' value='Shorten'>
+  </form>
+  <img class='spinner' src='/spiffygif_46x46.gif'>
+  <div class='message'></div>
+</script>
+
+<script id='logout' type='text/x-handlebars-template'>
   <form>
       <input class='text' type='text' name='url'>
       <input type='submit' value='Shorten'>

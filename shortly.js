@@ -40,8 +40,6 @@ function restrict(req, res, next){
   }
 };
 
-
-
 app.get('/', function(req, res) {
   res.render('index');
 });
@@ -54,7 +52,7 @@ function(req, res) {
 app.get('/links', restrict, function(req, res) {
   // Filter out for the user_id
   Links.reset()
-  .query('where', 'user_id', '=', req.session.id)
+  .query('where', 'user_id', '=', req.session.user_id)
   .fetch()
   .then(function(links) {
     res.send(200, links.models);
