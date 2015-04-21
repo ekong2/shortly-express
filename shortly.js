@@ -46,23 +46,27 @@ app.get('/', function(req, res) {
   res.render('index');
 });
 
-app.get('/create',
+app.get('/create', restrict,
 function(req, res) {
   res.render('index');
 });
 
 app.get('/links', restrict, function(req, res) {
-  Links.reset().fetch().then(function(links) {
+  // Filter out for the user_id
+  Links.reset()
+  .query('where', 'user_id', '=', req.session.id)
+  .fetch()
+  .then(function(links) {
     res.send(200, links.models);
   });
 });
 
-app.post('/links',
-function(req, res) {
+app.post('/links', restrict, function(req, res) {
   var uri = req.body.url;
 
   if (!util.isValidUrl(uri)) {
     console.log('Not a valid url: ', uri);
+    // console.log(res.send(404));
     return res.send(404);
   }
 
@@ -76,7 +80,9 @@ function(req, res) {
           return res.send(404);
         }
 
+        console.log(req.session.user_id);
         var link = new Link({
+          user_id: req.session.user_id,
           url: uri,
           title: title,
           base_url: req.headers.origin
@@ -112,19 +118,23 @@ app.post('/login', function (req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  new User({username: username}).fetch().then(function(found){
+  new User({username: username}).fetch().then(function (found){
     if (found) {
       console.log('USER WAS FOUND');
-      var hash = bcrypt.hashSync(password, found.get('salt'));
-      if(hash === found.get('hash')) {
-        console.log('USER WAS AUTHENTICATED');
-        req.session.regenerate(function(){
-          req.session.user = username;
-          res.redirect('/');
-        });
-      } else {
-        res.redirect('/login');
-      }
+      bcrypt.hash(password, found.get('salt'), null, function (err, hash) {
+        if (err) {
+          res.redirect('/login');
+        } else if(hash === found.get('hash')) {
+          console.log('USER WAS AUTHENTICATED');
+          req.session.regenerate(function(){
+            req.session.user = found.get('username');
+            req.session.user_id = found.get('id');
+            res.redirect('/');
+          });
+        } else {
+          res.redirect('/login');
+        }
+      });
     } else {
       res.redirect('/login');
     }
@@ -134,16 +144,21 @@ app.post('/login', function (req, res) {
 app.post('/signup', function (req, res){
   var username = req.body.username;
   var password = req.body.password;
+  new User({username: username}).fetch().then(function(found){
+    if (found){
+      console.log("USERNAME ALREADY TAKEN");
+      res.redirect('/signup');
+    } else {
+      var user = new User({
+        username: username,
+        password: password
+      });
 
-  // error handling for if the username is already taken
-  var user = new User({
-    username: username,
-    password: password
-  });
-
-  user.save().then(function(newUser) {
-    Users.add(newUser);
-    res.redirect('/login');
+      user.save().then(function(newUser) {
+        Users.add(newUser);
+        res.redirect('/login');
+      });
+    }
   });
 
 });
